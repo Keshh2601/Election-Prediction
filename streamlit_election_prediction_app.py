@@ -2,72 +2,87 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
+
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import StandardScaler
+
 from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, confusion_matrix
 from xgboost import XGBClassifier
 
-# -------------------------------
-# STREAMLIT PAGE CONFIG
-# -------------------------------
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import classification_report
+
+# ------------------------------------------------
+# PAGE CONFIG
+# ------------------------------------------------
 st.set_page_config(
     page_title="Election Prediction System",
     page_icon="🗳️",
     layout="wide"
 )
 
-# -------------------------------
+# ------------------------------------------------
 # TITLE
-# -------------------------------
-st.title("🗳️ Indian Election Prediction System")
+# ------------------------------------------------
+st.title("🗳️ Election Prediction System")
 st.markdown("### Machine Learning Based Election Winner Prediction")
 
-st.write(
-    "This project predicts election winners using Machine Learning algorithms like "
-    "Logistic Regression, Decision Tree, Random Forest, and XGBoost."
+# ------------------------------------------------
+# SIDEBAR
+# ------------------------------------------------
+st.sidebar.title("Navigation")
+
+menu = st.sidebar.radio(
+    "Select Option",
+    [
+        "Home",
+        "Dataset",
+        "Visualization",
+        "Model Training",
+        "Prediction",
+        "About"
+    ]
 )
 
-# -------------------------------
+# ------------------------------------------------
 # FILE UPLOAD
-# -------------------------------
-st.sidebar.header("Upload Dataset")
+# ------------------------------------------------
 uploaded_file = st.sidebar.file_uploader(
-    "Upload CSV File",
+    "Upload Election Dataset",
     type=["csv"]
 )
 
 if uploaded_file is not None:
 
-    # Load Dataset
     df = pd.read_csv(uploaded_file)
 
-    st.subheader("📊 Dataset Preview")
-    st.dataframe(df.head())
-
-    st.subheader("Dataset Shape")
-    st.write(df.shape)
-
-    st.subheader("Columns")
-    st.write(df.columns.tolist())
-
-    # -------------------------------
+    # ------------------------------------------------
     # CREATE WINNER COLUMN
-    # -------------------------------
-    max_votes = df.groupby(['year', 'pc_name'])['totvotpoll'].transform('max')
-    df['winner'] = np.where(df['totvotpoll'] == max_votes, 1, 0)
+    # ------------------------------------------------
+    max_votes = df.groupby(
+        ['year', 'pc_name']
+    )['totvotpoll'].transform('max')
 
-    # -------------------------------
-    # HANDLE MISSING VALUES
-    # -------------------------------
+    df['winner'] = np.where(
+        df['totvotpoll'] == max_votes,
+        1,
+        0
+    )
+
+    # ------------------------------------------------
+    # REMOVE NULLS
+    # ------------------------------------------------
     df.dropna(inplace=True)
 
-    # -------------------------------
-    # ENCODE CATEGORICAL COLUMNS
-    # -------------------------------
-    label_encoder = LabelEncoder()
+    # ------------------------------------------------
+    # ENCODE CATEGORICAL DATA
+    # ------------------------------------------------
+    encoder = LabelEncoder()
 
     categorical_columns = [
         'st_name',
@@ -81,29 +96,31 @@ if uploaded_file is not None:
 
     for col in categorical_columns:
         if col in df.columns:
-            df[col] = label_encoder.fit_transform(df[col])
+            df[col] = encoder.fit_transform(df[col])
 
-    # -------------------------------
-    # FEATURE SELECTION
-    # -------------------------------
-    X = df[[
-        'st_name',
-        'year',
-        'pc_no',
-        'pc_name',
-        'pc_type',
-        'cand_sex',
-        'partyname',
-        'partyabbre',
-        'totvotpoll',
-        'electors'
-    ]]
+    # ------------------------------------------------
+    # FEATURES
+    # ------------------------------------------------
+    X = df[
+        [
+            'st_name',
+            'year',
+            'pc_no',
+            'pc_name',
+            'pc_type',
+            'cand_sex',
+            'partyname',
+            'partyabbre',
+            'totvotpoll',
+            'electors'
+        ]
+    ]
 
     y = df['winner']
 
-    # -------------------------------
-    # TRAIN TEST SPLIT
-    # -------------------------------
+    # ------------------------------------------------
+    # SPLIT DATA
+    # ------------------------------------------------
     X_train, X_test, y_train, y_test = train_test_split(
         X,
         y,
@@ -111,131 +128,364 @@ if uploaded_file is not None:
         random_state=42
     )
 
-    # -------------------------------
-    # LOGISTIC REGRESSION
-    # -------------------------------
-    scaler = StandardScaler()
+    # ------------------------------------------------
+    # HOME PAGE
+    # ------------------------------------------------
+    if menu == "Home":
 
-    X_train_scaled = scaler.fit_transform(X_train)
-    X_test_scaled = scaler.transform(X_test)
+        st.header("🏠 Home")
 
-    lr_model = LogisticRegression(
-        max_iter=5000,
-        solver='lbfgs'
-    )
+        st.write("""
+        This application predicts election winners
+        using Machine Learning algorithms.
+        """)
 
-    lr_model.fit(X_train_scaled, y_train)
-    lr_pred = lr_model.predict(X_test_scaled)
+        st.subheader("Algorithms Used")
 
-    lr_accuracy = accuracy_score(y_test, lr_pred)
+        st.write("""
+        - Logistic Regression
+        - Decision Tree
+        - Random Forest
+        - XGBoost
+        """)
 
-    # -------------------------------
-    # DECISION TREE
-    # -------------------------------
-    dt_model = DecisionTreeClassifier()
-    dt_model.fit(X_train, y_train)
-    dt_pred = dt_model.predict(X_test)
+    # ------------------------------------------------
+    # DATASET PAGE
+    # ------------------------------------------------
+    elif menu == "Dataset":
 
-    dt_accuracy = accuracy_score(y_test, dt_pred)
+        st.header("📊 Dataset")
 
-    # -------------------------------
-    # RANDOM FOREST
-    # -------------------------------
-    rf_model = RandomForestClassifier(
-        n_estimators=100,
-        random_state=42
-    )
+        st.write("Dataset Shape:")
+        st.write(df.shape)
 
-    rf_model.fit(X_train, y_train)
-    rf_pred = rf_model.predict(X_test)
+        st.write("Columns:")
+        st.write(df.columns)
 
-    rf_accuracy = accuracy_score(y_test, rf_pred)
+        st.subheader("Dataset Preview")
+        st.dataframe(df.head())
 
-    # -------------------------------
-    # XGBOOST
-    # -------------------------------
-    xgb_model = XGBClassifier(
-        n_estimators=100,
-        learning_rate=0.1,
-        max_depth=6,
-        random_state=42
-    )
+    # ------------------------------------------------
+    # VISUALIZATION PAGE
+    # ------------------------------------------------
+    elif menu == "Visualization":
 
-    xgb_model.fit(X_train, y_train)
-    xgb_pred = xgb_model.predict(X_test)
+        st.header("📈 Data Visualization")
 
-    xgb_accuracy = accuracy_score(y_test, xgb_pred)
+        chart_option = st.selectbox(
+            "Select Visualization",
+            [
+                "Votes Distribution",
+                "Winner Distribution",
+                "Gender Distribution"
+            ]
+        )
 
-    # -------------------------------
-    # MODEL COMPARISON
-    # -------------------------------
-    st.subheader("📈 Model Accuracy Comparison")
+        # Votes Distribution
+        if chart_option == "Votes Distribution":
 
-    comparison = pd.DataFrame({
-        'Model': [
-            'Logistic Regression',
-            'Decision Tree',
-            'Random Forest',
-            'XGBoost'
-        ],
-        'Accuracy': [
-            lr_accuracy,
-            dt_accuracy,
-            rf_accuracy,
-            xgb_accuracy
-        ]
-    })
+            fig, ax = plt.subplots()
 
-    st.dataframe(comparison)
+            sns.histplot(
+                df['totvotpoll'],
+                bins=30,
+                ax=ax
+            )
 
-    # -------------------------------
-    # BAR CHART
-    # -------------------------------
-    fig, ax = plt.subplots(figsize=(8, 5))
+            ax.set_title("Votes Distribution")
 
-    ax.bar(comparison['Model'], comparison['Accuracy'])
+            st.pyplot(fig)
 
-    ax.set_xlabel('Models')
-    ax.set_ylabel('Accuracy')
-    ax.set_title('Model Accuracy Comparison')
+        # Winner Distribution
+        elif chart_option == "Winner Distribution":
 
-    st.pyplot(fig)
+            fig, ax = plt.subplots()
 
-    # -------------------------------
-    # CONFUSION MATRIX
-    # -------------------------------
-    st.subheader("🧩 Random Forest Confusion Matrix")
+            sns.countplot(
+                x='winner',
+                data=df,
+                ax=ax
+            )
 
-    cm = confusion_matrix(y_test, rf_pred)
+            ax.set_title("Winner vs Loser")
 
-    fig2, ax2 = plt.subplots()
+            st.pyplot(fig)
 
-    cax = ax2.matshow(cm)
-    plt.colorbar(cax)
+        # Gender Distribution
+        elif chart_option == "Gender Distribution":
 
-    for (i, j), val in np.ndenumerate(cm):
-        ax2.text(j, i, val, ha='center', va='center')
+            fig, ax = plt.subplots()
 
-    ax2.set_xlabel('Predicted')
-    ax2.set_ylabel('Actual')
+            sns.countplot(
+                x='cand_sex',
+                data=df,
+                ax=ax
+            )
 
-    st.pyplot(fig2)
+            ax.set_title("Candidate Gender Distribution")
 
-    # -------------------------------
-    # BEST MODEL
-    # -------------------------------
-    best_model = comparison.loc[
-        comparison['Accuracy'].idxmax(),
-        'Model'
-    ]
+            st.pyplot(fig)
 
-    st.success(f'✅ Best Performing Model: {best_model}')
+    # ------------------------------------------------
+    # MODEL TRAINING PAGE
+    # ------------------------------------------------
+    elif menu == "Model Training":
+
+        st.header("🤖 Model Training")
+
+        model_option = st.selectbox(
+            "Select Model",
+            [
+                "Logistic Regression",
+                "Decision Tree",
+                "Random Forest",
+                "XGBoost"
+            ]
+        )
+
+        # Logistic Regression
+        if model_option == "Logistic Regression":
+
+            scaler = StandardScaler()
+
+            X_train_scaled = scaler.fit_transform(X_train)
+            X_test_scaled = scaler.transform(X_test)
+
+            model = LogisticRegression(max_iter=5000)
+
+            model.fit(X_train_scaled, y_train)
+
+            predictions = model.predict(X_test_scaled)
+
+        # Decision Tree
+        elif model_option == "Decision Tree":
+
+            model = DecisionTreeClassifier()
+
+            model.fit(X_train, y_train)
+
+            predictions = model.predict(X_test)
+
+        # Random Forest
+        elif model_option == "Random Forest":
+
+            model = RandomForestClassifier(
+                n_estimators=100,
+                random_state=42
+            )
+
+            model.fit(X_train, y_train)
+
+            predictions = model.predict(X_test)
+
+        # XGBoost
+        elif model_option == "XGBoost":
+
+            model = XGBClassifier()
+
+            model.fit(X_train, y_train)
+
+            predictions = model.predict(X_test)
+
+        # Accuracy
+        accuracy = accuracy_score(
+            y_test,
+            predictions
+        )
+
+        st.success(f"Accuracy: {accuracy:.4f}")
+
+        # Confusion Matrix
+        st.subheader("Confusion Matrix")
+
+        cm = confusion_matrix(
+            y_test,
+            predictions
+        )
+
+        fig, ax = plt.subplots()
+
+        sns.heatmap(
+            cm,
+            annot=True,
+            fmt='d',
+            ax=ax
+        )
+
+        st.pyplot(fig)
+
+        # Classification Report
+        st.subheader("Classification Report")
+
+        report = classification_report(
+            y_test,
+            predictions
+        )
+
+        st.text(report)
+
+    # ------------------------------------------------
+    # PREDICTION PAGE
+    # ------------------------------------------------
+    elif menu == "Prediction":
+
+        st.header("🧠 Election Prediction")
+
+        st.subheader("Enter Candidate Details")
+
+        st_name = st.number_input(
+            "State Code",
+            min_value=0
+        )
+
+        year = st.number_input(
+            "Election Year",
+            min_value=2000
+        )
+
+        pc_no = st.number_input(
+            "Constituency Number",
+            min_value=0
+        )
+
+        pc_name = st.number_input(
+            "Constituency Code",
+            min_value=0
+        )
+
+        pc_type = st.number_input(
+            "PC Type",
+            min_value=0
+        )
+
+        cand_sex = st.number_input(
+            "Candidate Gender Code",
+            min_value=0
+        )
+
+        partyname = st.number_input(
+            "Party Code",
+            min_value=0
+        )
+
+        partyabbre = st.number_input(
+            "Party Abbreviation Code",
+            min_value=0
+        )
+
+        totvotpoll = st.number_input(
+            "Total Votes Polled",
+            min_value=0
+        )
+
+        electors = st.number_input(
+            "Number of Electors",
+            min_value=0
+        )
+
+        predict_model = st.selectbox(
+            "Select Prediction Model",
+            [
+                "Random Forest",
+                "Decision Tree",
+                "Logistic Regression",
+                "XGBoost"
+            ]
+        )
+
+        if st.button("Predict Result"):
+
+            sample_input = pd.DataFrame(
+                [[
+                    st_name,
+                    year,
+                    pc_no,
+                    pc_name,
+                    pc_type,
+                    cand_sex,
+                    partyname,
+                    partyabbre,
+                    totvotpoll,
+                    electors
+                ]],
+                columns=[
+                    'st_name',
+                    'year',
+                    'pc_no',
+                    'pc_name',
+                    'pc_type',
+                    'cand_sex',
+                    'partyname',
+                    'partyabbre',
+                    'totvotpoll',
+                    'electors'
+                ]
+            )
+
+            # Train Selected Model
+            if predict_model == "Random Forest":
+
+                model = RandomForestClassifier()
+
+                model.fit(X_train, y_train)
+
+                prediction = model.predict(sample_input)
+
+            elif predict_model == "Decision Tree":
+
+                model = DecisionTreeClassifier()
+
+                model.fit(X_train, y_train)
+
+                prediction = model.predict(sample_input)
+
+            elif predict_model == "Logistic Regression":
+
+                scaler = StandardScaler()
+
+                X_train_scaled = scaler.fit_transform(X_train)
+
+                sample_scaled = scaler.transform(sample_input)
+
+                model = LogisticRegression(max_iter=5000)
+
+                model.fit(X_train_scaled, y_train)
+
+                prediction = model.predict(sample_scaled)
+
+            else:
+
+                model = XGBClassifier()
+
+                model.fit(X_train, y_train)
+
+                prediction = model.predict(sample_input)
+
+            if prediction[0] == 1:
+                st.success("🏆 Predicted Result: WINNER")
+            else:
+                st.error("❌ Predicted Result: LOSER")
+
+    # ------------------------------------------------
+    # ABOUT PAGE
+    # ------------------------------------------------
+    elif menu == "About":
+
+        st.header("ℹ️ About Project")
+
+        st.write("""
+        Election Prediction System developed using:
+
+        - Python
+        - Streamlit
+        - Machine Learning
+        - Scikit-Learn
+        - XGBoost
+        - Pandas
+        - Matplotlib
+        - Seaborn
+        """)
 
 else:
-    st.info("⬅️ Upload your election dataset CSV file to begin.")
 
-# -------------------------------
-# FOOTER
-# -------------------------------
-st.markdown("---")
-st.markdown("Developed using Streamlit and Machine Learning")
+    st.warning("Please upload a CSV dataset.")
